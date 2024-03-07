@@ -2,15 +2,21 @@
 from pyserialgps.messages.base import NMEA0183
 
 from pyserialgps.messages.gga import GGA
+from pyserialgps.messages.gll import GLL
 from pyserialgps.messages.gsa import GSA
 from pyserialgps.messages.gsv import GSV
 from pyserialgps.messages.rmc import RMC
+from pyserialgps.messages.txt import TXT
+from pyserialgps.messages.vtg import VTG
 
 _MSG_START_MAP = {
     b'GGA': GGA,
     b'GSV': GSV,
     b'RMC': RMC,
-    b'GSA': GSA
+    b'GSA': GSA,
+    b'TXT': TXT,
+    b'VTG': VTG,
+    b'GLL': GLL
 }
 
 

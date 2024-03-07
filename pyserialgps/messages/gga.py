@@ -1,13 +1,10 @@
 
 from enum import IntEnum
-import re
 
-from pyserialgps.messages.base import NMEA0183, UTCTime
+from pyserialgps.messages.base import NMEA0183
 
 
 class GGA(NMEA0183):
-
-    _TIME_RE = re.compile(r'^(?P<hour>\d\d)(?P<minute>\d\d)(?P<second>\d\d\.\d+)$')
 
     class Quality(IntEnum):
         NOT_VALID = 0
@@ -20,7 +17,7 @@ class GGA(NMEA0183):
 
     def __init__(self, msg: bytes) -> None:
         super().__init__(msg)
-        self.utc = GGA._str_to_time(self.message[0])
+        self.utc = NMEA0183._str_to_time(self.message[0])
         self.lat = float(self.message[1])
         self.lat_dir = self.message[2]
         self.lon = float(self.message[3])
@@ -40,12 +37,6 @@ class GGA(NMEA0183):
             f"{self.type} => "
             f"{self.lat}{self.lat_dir}, {self.lon}{self.lon_dir}; "
             f"elev: {self.height}{self.height_unit}")
-
-    @staticmethod
-    def _str_to_time(value: str) -> UTCTime:
-        if (match := GGA._TIME_RE.match(value)) is None:
-            raise ValueError(f'{value} is an invalid UTC time.')
-        return UTCTime(int(match['hour']), int(match['minute']), float(match['second']))
 
 
 if __name__ == "__main__":

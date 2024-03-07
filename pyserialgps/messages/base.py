@@ -21,6 +21,15 @@ class LonDir(StrEnum):
     WEST = 'W'
 
 
+class Mode(StrEnum):
+    AUTONOMOUS = 'A'
+    DIFFERENTIAL = 'D'
+    ESTIMATED = 'E'
+    MANUAL = 'M'
+    SIMULATED = 'S'
+    NOT_VALID = 'N'
+
+
 class NMEA0183:
     START = '$GP'
     SEPARATOR = ','
@@ -33,6 +42,7 @@ class NMEA0183:
             \*(?P<checksum>[0-9A-F]{{2}})
         ''',
         re.VERBOSE)
+    _TIME_RE = re.compile(r'^(?P<hour>\d\d)(?P<minute>\d\d)(?P<second>\d\d\.\d+)$')
 
     def __init__(self, msg: bytes) -> None:
         self.full_message = msg.decode(encoding='ASCII')
@@ -54,3 +64,13 @@ class NMEA0183:
 
     def __str__(self) -> str:
         return self.full_message
+
+    @staticmethod
+    def _str_to_float_or_none(value: str) -> float | None:
+        return None if value == '' else float(value)
+
+    @staticmethod
+    def _str_to_time(value: str) -> UTCTime:
+        if (match := NMEA0183._TIME_RE.match(value)) is None:
+            raise ValueError(f'{value} is an invalid UTC time.')
+        return UTCTime(int(match['hour']), int(match['minute']), float(match['second']))
