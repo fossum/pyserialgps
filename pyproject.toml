@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyserialgps"
+version = "0.0.1"
+dependencies = [
+  "pyserial"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["pyserialgps"]
