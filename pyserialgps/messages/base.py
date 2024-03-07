@@ -1,6 +1,14 @@
 
+from dataclasses import dataclass
 from enum import StrEnum
 import re
+
+
+@dataclass
+class UTCTime:
+    hour: int
+    minute: int
+    second: float
 
 
 class LatDir(StrEnum):
@@ -43,3 +51,6 @@ class NMEA0183:
 
     def is_checksum_valid(self) -> bool:
         return True
+
+    def __str__(self) -> str:
+        return self.full_message
