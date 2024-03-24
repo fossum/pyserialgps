@@ -3,10 +3,12 @@ import logging
 from queue import Queue
 import threading
 import time
+from typing import Callable
 
 from serial import Serial
 
 from pyserialgps.messages import get_nmea_msg
+from pyserialgps.messages.base import NMEA0183
 
 
 class GPS:
@@ -24,6 +26,9 @@ class GPS:
     def __del__(self):
         self.producer.stop()
         self.consumer.stop()
+
+    def add_subscriber(self, func: Callable[[NMEA0183], None]):
+        self.consumer.add_subscriber(func)
 
     class _ProducerThread(threading.Thread):
         def __init__(self, group=None, target=None, name=None,
@@ -54,9 +59,13 @@ class GPS:
             self.name = name
             self._stop = False
             self._queue = args
+            self._subscribers = []
 
         def stop(self):
             self._stop = True
+
+        def add_subscriber(self, func: Callable[[NMEA0183], None]):
+            self._subscribers.append(func)
 
         def run(self):
             while not self._stop:
@@ -67,4 +76,9 @@ class GPS:
                     except ValueError as exc:
                         gps_msg = f"{exc} => {item}"
                     logging.info(f'Getting {str(gps_msg)} : {str(self._queue.qsize())} items in queue')
+                    if isinstance(gps_msg, NMEA0183):
+                        for subscriber in self._subscribers:
+                            logging.debug(f'Calling {str(subscriber)}')
+                            subscriber(gps_msg)
+                else:
                     time.sleep(0.1)
