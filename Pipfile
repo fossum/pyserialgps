@@ -5,6 +5,9 @@ name = "pypi"
 
 [packages]
 pyserialgps = {file = ".", editable = true}
+attrs = "*"
+timezonefinder = "*"
+asyncio = "*"
 
 [dev-packages]
 build = "*"

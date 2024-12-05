@@ -1,3 +1,4 @@
+"""GPS message parser package."""
 
 from pyserialgps.messages.base import NMEA0183
 
@@ -21,7 +22,15 @@ _MSG_START_MAP = {
 
 
 def get_nmea_msg(msg: bytes) -> NMEA0183:
+    """Get the NMEA message object from the raw message.
+
+    Args:
+        msg (bytes): Raw NMEA message.
+
+    Returns:
+        NMEA0183: NMEA message object.
+    """
     if msg.startswith(b'$GP'):
         if func := _MSG_START_MAP.get(msg[3:6]):
             return func(msg)
-    raise ValueError(f'Unknown message type: {msg[3:6]}')
+    raise ValueError(f'Unknown message type: {msg[3:6]!r}')
