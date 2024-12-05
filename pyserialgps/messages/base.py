@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 import re
 
+from attrs import define, field
+
 
 @dataclass
 class UTCTime:
@@ -10,15 +12,38 @@ class UTCTime:
     minute: int
     second: float
 
+    def __str__(self) -> str:
+        return f"{self.hour:02d}:{self.minute:02d}:{self.second:04.2f}"
+
+
+@define
+class Coordinate:
+    DEGREES: int = field(converter=int)
+    MINUTES: float = field(converter=float)
+
+    @classmethod
+    def from_nmea_coordinate(self, value: str | float):
+        value = float(value)
+        return Coordinate(value // 100, value % 100)
+
+    def to_degrees(self, direction: "LatDir | LonDir") -> float:
+        value = self.DEGREES + self.MINUTES / 60
+        return value if direction in (LatDir.NORTH, LonDir.EAST) else -value
+
+    def __str__(self) -> str:
+        return f"{self.DEGREES}° {self.MINUTES:06.5f}'"
+
 
 class LatDir(StrEnum):
     NORTH = 'N'
     SOUTH = 'S'
+    NA = ""
 
 
 class LonDir(StrEnum):
     EAST = 'E'
     WEST = 'W'
+    NA = ""
 
 
 class Mode(StrEnum):
@@ -33,7 +58,7 @@ class Mode(StrEnum):
 class NMEA0183:
     START = '$GP'
     SEPARATOR = ','
-    CHKSUM_SEPARATOR = '*'
+    CHK_SUM_SEPARATOR = '*'
     MSG_RE = re.compile(
         fr'''
             {re.escape(START)}
