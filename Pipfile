@@ -8,6 +8,8 @@ pyserialgps = {file = ".", editable = true}
 attrs = "*"
 timezonefinder = "*"
 asyncio = "*"
+types-pyserial = "*"
+pyserial-asyncio = "*"
 
 [dev-packages]
 build = "*"

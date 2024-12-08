@@ -1,91 +1,60 @@
 
+import asyncio
 import logging
-from queue import Queue
-import threading
-import time
 from typing import Callable
-
-from serial import Serial
 
 from pyserialgps.messages import get_nmea_msg
 from pyserialgps.messages.base import NMEA0183
 from pyserialgps.messages.gsv import GSV
 
 
-class GPS:
+class GPS(asyncio.Protocol):
     BUF_SIZE = 100
 
-    def __init__(self, port: str) -> None:
-        self._queue: Queue = Queue(GPS.BUF_SIZE)
-        self.device = Serial(port)
-        self.producer = GPS._ProducerThread(name='producer', args=(self.device, self._queue))
-        self.consumer = GPS._ConsumerThread(name='consumer', args=(self._queue))
+    def __init__(self) -> None:
+        super().__init__()
+        self._logger = logging.getLogger(__name__)
+        self._buffer = b''
+        self._subscribers: list[Callable[[NMEA0183], None]] = []
 
-        self.producer.start()
-        self.consumer.start()
+    def connection_made(self, transport) -> None:
+        self.transport = transport
 
-    def __del__(self):
-        self.producer.stop()
-        self.consumer.stop()
+    def data_received(self, data) -> None:
+        self._buffer += data
+        lines = self._buffer.split(b'\n')
+        self._buffer = lines.pop(-1)  # Store the last incomplete line
+        for line in lines:
+            msg = self.process_message(line)
+            if msg is not None:
+                self.notify_subscribers(msg)
+
+    def connection_lost(self, exc: Exception | None) -> None:
+        print('port closed')
+        if exc is not None:
+            self._logger.error(exc)
+        raise asyncio.CancelledError
+
+    def notify_subscribers(self, msg: NMEA0183):
+        def notify(inner_msg):
+            self._logger.debug(f'Calling {str(subscriber)}')
+            subscriber(inner_msg)
+
+        for subscriber in self._subscribers:
+            if isinstance(msg, GSV):
+                if msg.complete_message:
+                    notify(msg.complete_message)
+                pass
+            else:
+                notify(msg)
+
+    def process_message(self, line: bytes) -> NMEA0183 | None:
+        msg = None
+        try:
+            msg = get_nmea_msg(line)
+        except ValueError:
+            self._logger.warning(f"Unknown message: {line!r}")
+        return msg
 
     def add_subscriber(self, func: Callable[[NMEA0183], None]):
-        self.consumer.add_subscriber(func)
-
-    class _ProducerThread(threading.Thread):
-        def __init__(self, group=None, target=None, name=None,
-                     args=(), kwargs=None, _verbose=None):
-            super(GPS._ProducerThread, self).__init__()
-            self.target = target
-            self.name = name
-            self.gps: Serial = args[0]
-            self._stop = False
-            self._queue = args[1]
-            self._logger = logging.getLogger(self.name)
-
-        def stop(self):
-            self._stop = True
-
-        def run(self):
-            while not self._stop:
-                if not self._queue.full():
-                    line = self.gps.readline()
-                    self._queue.put(line)
-                    self._logger.debug(f'Putting {line} : {str(self._queue.qsize())} items in queue')
-            return
-
-    class _ConsumerThread(threading.Thread):
-        def __init__(self, group=None, target=None, name=None,
-                     args=(), kwargs=None, _verbose=None):
-            super(GPS._ConsumerThread, self).__init__()
-            self.target = target
-            self.name = name
-            self._stop = False
-            self._queue = args
-            self._subscribers = []
-            self._logger = logging.getLogger(self.name)
-
-        def stop(self):
-            self._stop = True
-
-        def add_subscriber(self, func: Callable[[NMEA0183], None]):
-            self._subscribers.append(func)
-
-        def run(self):
-            while not self._stop:
-                if not self._queue.empty():
-                    item = self._queue.get()
-                    try:
-                        gps_msg = get_nmea_msg(item)
-                    except ValueError as exc:
-                        gps_msg = f"{exc} => {item}"
-                    self._logger.debug(f'Getting {str(gps_msg)} : {str(self._queue.qsize())} items in queue')
-                    if isinstance(gps_msg, NMEA0183):
-                        for subscriber in self._subscribers:
-                            logging.debug(f'Calling {str(subscriber)}')
-                            if isinstance(gps_msg, GSV):
-                                if gps_msg.complete_message:
-                                    subscriber(gps_msg.complete_message)
-                            else:
-                                subscriber(gps_msg)
-                else:
-                    time.sleep(5)
+        self._subscribers.append(func)
