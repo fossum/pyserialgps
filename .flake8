@@ -1,0 +1,13 @@
+[flake8]
+max-line-length = 120
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    venv
+docstring-convention = google
+# W1203: logging-fstring-interpolation
+ignore = W1203
+# logging-not-lazy / W1201
+enable-extensions = W1201
